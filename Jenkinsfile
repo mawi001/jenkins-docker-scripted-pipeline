@@ -1,5 +1,22 @@
 #!groovy
 node(){
+
+    def tryStep(String message, Closure block, Closure tearDown = null) {
+        try {
+            block()
+        }
+        catch (Throwable t) {
+            slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
+
+            throw t
+        }
+        finally {
+            if (tearDown) {
+                tearDown()
+            }
+        }
+    }
+    
     withEnv(['DISABLE_AUTH=true',
            'DB_ENGINE=sqlite']) {
 
@@ -92,19 +109,3 @@ node(){
 //         }
 //   }
 // }
-
-def tryStep(String message, Closure block, Closure tearDown = null) {
-    try {
-        block()
-    }
-    catch (Throwable t) {
-        slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
-
-        throw t
-    }
-    finally {
-        if (tearDown) {
-            tearDown()
-        }
-    }
-}
