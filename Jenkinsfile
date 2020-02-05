@@ -21,19 +21,11 @@ node(){
          stage("Checkout") {
              checkout scm
          }
-
-         stage('Test') {
-             Step "test", {
-                 sh "ls Dockerfile"
-
-             },
-             {
-                 sh "cat Dockerfile"
-             },
-             {
-                 echo "${DISABLE_AUTH}"
-             }
-         }
+         stage('Build') {
+             echo "Database engine is ${DB_ENGINE}"
+             echo "DISABLE_AUTH is ${DISABLE_AUTH}"
+             sh 'printenv'
+         }     
     }
 }
 
