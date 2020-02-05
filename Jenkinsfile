@@ -1,20 +1,4 @@
 #!groovy
-def tryStep(String message, Closure block, Closure tearDown = null) {
-    try {
-        block()
-    }
-    catch (Throwable t) {
-        slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
-
-        throw t
-    }
-    finally {
-        if (tearDown) {
-            tearDown()
-        }
-    }
-}
-
 pipeline {
     agent any
     environment {
@@ -22,66 +6,82 @@ pipeline {
         slack_channel   = "#ci-channel"
     }
     stages {
-          stage("Checkout") {
-              checkout scm
-          }
+        def tryStep(String message, Closure block, Closure tearDown = null) {
+            try {
+                block()
+            }
+            catch (Throwable t) {
+                slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
 
-          stage('Test') {
-              tryStep "test", {
-                  sh "ls Dockerfile"
+                throw t
+            }
+            finally {
+                if (tearDown) {
+                    tearDown()
+                }
+            }
+        }
+        
+        stage("Checkout") {
+            checkout scm
+        }
 
-              },
-              {
-                  sh "cat Dockerfile"
-              }
-          }
+        stage('Test') {
+            tryStep "test", {
+                sh "ls Dockerfile"
 
-          stage("Build docker image from Dockerfile") {
-              tryStep "build", {
-                  docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                      def image = docker.build("${env.dockerImageName}",'.')
-                      image.push()
-                  }
-              }
-          }
+            },
+            {
+                sh "cat Dockerfile"
+            }
+        }
 
-          String BRANCH = "${env.BRANCH_NAME}"
+        stage("Build docker image from Dockerfile") {
+            tryStep "build", {
+                docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                    def image = docker.build("${env.dockerImageName}",'.')
+                    image.push()
+                }
+            }
+        }
 
-          if (BRANCH == "develop") {
+        String BRANCH = "${env.BRANCH_NAME}"
 
-              node {
-                  stage('Push develop image') {
-                      tryStep "image tagging", {
-                          docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                              def image = docker.build("${env.dockerImageName}",'.')
-                              image.pull()
-                              image.push("develop")
-                          }
-                      }
-                  }
-              }
-          }
+        if (BRANCH == "develop") {
 
-          if (BRANCH == "master") {
-              stage('Push acceptance image') {
-                  tryStep "image tagging", {
-                      docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                          def image = docker.build("${env.dockerImageName}",'.')
-                          image.pull()
-                          image.push("acceptance")
-                      }
-                  }
-              }
+            node {
+                stage('Push develop image') {
+                    tryStep "image tagging", {
+                        docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                            def image = docker.build("${env.dockerImageName}",'.')
+                            image.pull()
+                            image.push("develop")
+                        }
+                    }
+                }
+            }
+        }
 
-              stage("Deploy to ACC") {
-                  tryStep "deployment", {
-                      build job: 'Subtask_Openstack_Playbook',
-                          parameters: [
-                              [$class: 'StringParameterValue', name: 'INVENTORY', value: 'acceptance'],
-                              [$class: 'StringParameterValue', name: 'PLAYBOOK', value: 'deploy-gob-workflow.yml'],
-                          ]
-                  }
-              }
-          }
-    }
+        if (BRANCH == "master") {
+            stage('Push acceptance image') {
+                tryStep "image tagging", {
+                    docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                        def image = docker.build("${env.dockerImageName}",'.')
+                        image.pull()
+                        image.push("acceptance")
+                    }
+                }
+            }
+
+            stage("Deploy to ACC") {
+                tryStep "deployment", {
+                    build job: 'Subtask_Openstack_Playbook',
+                        parameters: [
+                            [$class: 'StringParameterValue', name: 'INVENTORY', value: 'acceptance'],
+                            [$class: 'StringParameterValue', name: 'PLAYBOOK', value: 'deploy-gob-workflow.yml'],
+                        ]
+                }
+            }
+        }
+  }
 }
