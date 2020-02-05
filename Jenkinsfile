@@ -1,27 +1,26 @@
 #!groovy
+def tryStep(String message, Closure block, Closure tearDown = null) {
+    try {
+        block()
+    }
+    catch (Throwable t) {
+        slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
+
+        throw t
+    }
+    finally {
+        if (tearDown) {
+            tearDown()
+        }
+    }
+}
+
 pipeline {
     agent any
     environment {
         dockerImageName = "user/my_image:${env.BUILD_NUMBER}"
         slack_channel   = "#ci-channel"
     }
-
-    def tryStep(String message, Closure block, Closure tearDown = null) {
-        try {
-            block()
-        }
-        catch (Throwable t) {
-            slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
-
-            throw t
-        }
-        finally {
-            if (tearDown) {
-                tearDown()
-            }
-        }
-    }
-
     stages {
       node {
           stage("Checkout") {
