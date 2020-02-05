@@ -87,9 +87,9 @@ pipeline {
                               [$class: 'StringParameterValue', name: 'INVENTORY', value: 'acceptance'],
                               [$class: 'StringParameterValue', name: 'PLAYBOOK', value: 'deploy-gob-workflow.yml'],
                           ]
-                  } # end step
-              } # end stage
-          } #end node
-      } # end branch master
-    } # end stages
-} # end pipeline
+                  }
+              }
+          }
+      }
+    }
+}
