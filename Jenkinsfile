@@ -16,7 +16,9 @@ def tryStep(String message, Closure block, Closure tearDown = null) {
 }
 node(){
     withEnv(['DISABLE_AUTH=true',
-           'DB_ENGINE=sqlite']) {
+           'DB_ENGINE=sqlite',
+           "dockerImageName="user/my_image:${env.BUILD_NUMBER}"
+           ]) {
 
          stage("Checkout") {
              checkout scm
@@ -25,7 +27,12 @@ node(){
              echo "Database engine is ${DB_ENGINE}"
              echo "DISABLE_AUTH is ${DISABLE_AUTH}"
              sh 'printenv'
-         }     
+
+             docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                 def image = docker.build("${env.dockerImageName}",'.')
+                 image.push()
+             }
+         }
     }
 }
 
