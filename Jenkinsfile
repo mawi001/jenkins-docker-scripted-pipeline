@@ -21,73 +21,69 @@ pipeline {
         dockerImageName = "user/my_image:${env.BUILD_NUMBER}"
         slack_channel   = "#ci-channel"
     }
-    stages {
-      node {
-          stage("Checkout") {
-              checkout scm
-          }
+    node {
+      stages {
+            stage("Checkout") {
+                checkout scm
+            }
 
-          stage('Test') {
-              tryStep "test", {
-                  sh "ls Dockerfile"
+            stage('Test') {
+                tryStep "test", {
+                    sh "ls Dockerfile"
 
-              },
-              {
-                  sh "cat Dockerfile"
-              }
-          }
+                },
+                {
+                    sh "cat Dockerfile"
+                }
+            }
 
-          stage("Build docker image from Dockerfile") {
-              tryStep "build", {
-                  docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                      def image = docker.build("${env.dockerImageName}",'.')
-                      image.push()
-                  }
-              }
-          }
-      }
+            stage("Build docker image from Dockerfile") {
+                tryStep "build", {
+                    docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                        def image = docker.build("${env.dockerImageName}",'.')
+                        image.push()
+                    }
+                }
+            }
 
-      String BRANCH = "${env.BRANCH_NAME}"
+            String BRANCH = "${env.BRANCH_NAME}"
 
-      if (BRANCH == "develop") {
+            if (BRANCH == "develop") {
 
-          node {
-              stage('Push develop image') {
-                  tryStep "image tagging", {
-                      docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                          def image = docker.build("${env.dockerImageName}",'.')
-                          image.pull()
-                          image.push("develop")
-                      }
-                  }
-              }
-          }
-      }
+                node {
+                    stage('Push develop image') {
+                        tryStep "image tagging", {
+                            docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                                def image = docker.build("${env.dockerImageName}",'.')
+                                image.pull()
+                                image.push("develop")
+                            }
+                        }
+                    }
+                }
+            }
 
-      if (BRANCH == "master") {
+            if (BRANCH == "master") {
+                stage('Push acceptance image') {
+                    tryStep "image tagging", {
+                        docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                            def image = docker.build("${env.dockerImageName}",'.')
+                            image.pull()
+                            image.push("acceptance")
+                        }
+                    }
+                }
 
-          node {
-              stage('Push acceptance image') {
-                  tryStep "image tagging", {
-                      docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                          def image = docker.build("${env.dockerImageName}",'.')
-                          image.pull()
-                          image.push("acceptance")
-                      }
-                  }
-              }
-          }
-
-          node {
-              stage("Deploy to ACC") {
-                  tryStep "deployment", {
-                      build job: 'Subtask_Openstack_Playbook',
-                          parameters: [
-                              [$class: 'StringParameterValue', name: 'INVENTORY', value: 'acceptance'],
-                              [$class: 'StringParameterValue', name: 'PLAYBOOK', value: 'deploy-gob-workflow.yml'],
-                          ]
-                  }
-              }
+                stage("Deploy to ACC") {
+                    tryStep "deployment", {
+                        build job: 'Subtask_Openstack_Playbook',
+                            parameters: [
+                                [$class: 'StringParameterValue', name: 'INVENTORY', value: 'acceptance'],
+                                [$class: 'StringParameterValue', name: 'PLAYBOOK', value: 'deploy-gob-workflow.yml'],
+                            ]
+                    }
+                }
+            }
           }
       }
     }
