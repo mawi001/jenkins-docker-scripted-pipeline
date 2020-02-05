@@ -2,12 +2,8 @@
 pipeline {
     agent any
     environment {
-        branch = 'master'
-        scmUrl = 'ssh://git@myScmServer.com/repos/myRepo.git'
-        serverPort = '8080'
-        developmentServer = 'dev-myproject.mycompany.com'
-        stagingServer = 'staging-myproject.mycompany.com'
-        productionServer = 'production-myproject.mycompany.com'
+        dockerImageName = "user/my_image:${env.BUILD_NUMBER}"
+        slack_channel   = "#ci-channel"
     }
 
     def tryStep(String message, Closure block, Closure tearDown = null) {
@@ -15,7 +11,7 @@ pipeline {
             block()
         }
         catch (Throwable t) {
-            slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: '#ci-channel', color: 'danger'
+            slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
 
             throw t
         }
@@ -34,22 +30,18 @@ pipeline {
 
           stage('Test') {
               tryStep "test", {
-                  sh "docker-compose -p gob_workflow -f src/.jenkins/test/docker-compose.yml build --no-cache && " +
-                     "docker-compose -p gob_workflow -f src/.jenkins/test/docker-compose.yml run -u root --rm test"
+                  sh "ls Dockerfile"
 
-              }, {
-                  sh "docker-compose -p gob_workflow -f src/.jenkins/test/docker-compose.yml down"
+              },
+              {
+                  sh "cat Dockerfile"
               }
           }
 
-          stage("Build image") {
+          stage("Build docker image from Dockerfile") {
               tryStep "build", {
-                  docker.withRegistry('https://repo.data.amsterdam.nl','docker-registry') {
-                      def image = docker.build("datapunt/gob_workflow:${env.BUILD_NUMBER}",
-                          "--no-cache " +
-                          "--shm-size 1G " +
-                          "--build-arg BUILD_ENV=acc" +
-                          " src")
+                  docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                      def image = docker.build("${env.dockerImageName}",'.')
                       image.push()
                   }
               }
@@ -59,14 +51,14 @@ pipeline {
       String BRANCH = "${env.BRANCH_NAME}"
 
       if (BRANCH == "develop") {
-        
+
           node {
               stage('Push develop image') {
                   tryStep "image tagging", {
-                      docker.withRegistry('https://repo.data.amsterdam.nl','docker-registry') {
-                          def image = docker.image("datapunt/gob_workflow:${env.BUILD_NUMBER}")
-                         image.pull()
-                         image.push("develop")
+                      docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                          def image = docker.build("${env.dockerImageName}",'.')
+                          image.pull()
+                          image.push("develop")
                       }
                   }
               }
@@ -78,8 +70,8 @@ pipeline {
           node {
               stage('Push acceptance image') {
                   tryStep "image tagging", {
-                      docker.withRegistry('https://repo.data.amsterdam.nl','docker-registry') {
-                          def image = docker.image("datapunt/gob_workflow:${env.BUILD_NUMBER}")
+                      docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
+                          def image = docker.build("${env.dockerImageName}",'.')
                           image.pull()
                           image.push("acceptance")
                       }
