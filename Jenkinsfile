@@ -23,7 +23,7 @@ node(){
          }
 
          stage('Test') {
-             tryStep "test", {
+             Step "test", {
                  sh "ls Dockerfile"
 
              },
