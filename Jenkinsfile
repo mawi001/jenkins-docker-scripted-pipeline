@@ -1,22 +1,20 @@
 #!groovy
-node(){
+def tryStep(String message, Closure block, Closure tearDown = null) {
+    try {
+        block()
+    }
+    catch (Throwable t) {
+        slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
 
-    def tryStep(String message, Closure block, Closure tearDown = null) {
-        try {
-            block()
-        }
-        catch (Throwable t) {
-            slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
-
-            throw t
-        }
-        finally {
-            if (tearDown) {
-                tearDown()
-            }
+        throw t
+    }
+    finally {
+        if (tearDown) {
+            tearDown()
         }
     }
-    
+}
+node(){
     withEnv(['DISABLE_AUTH=true',
            'DB_ENGINE=sqlite']) {
 
