@@ -1,9 +1,6 @@
 #!groovy
 node {
-    withEnv(['DISABLE_AUTH=true',
-           'DB_ENGINE=sqlite',
-           "dockerImageName="user/my_image:${env.BUILD_NUMBER}"
-           ]) {
+    withEnv(['DISABLE_AUTH=true','DB_ENGINE=sqlite',"DOCKER_IMAGE_NAME="user/my_image:${env.BUILD_NUMBER}"]) {
 
          stage("Checkout") {
              checkout scm
@@ -14,7 +11,7 @@ node {
              sh 'printenv'
 
              docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                 def image = docker.build("${env.dockerImageName}")
+                 def image = docker.build("${DOCKER_IMAGE_NAME}")
                  image.push()
              }
          }
