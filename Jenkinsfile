@@ -2,7 +2,7 @@
 node {
     withEnv(['DISABLE_AUTH=true',
              'DB_ENGINE=sqlite',
-             'DOCKER_IMAGE_NAME=mydockerimage'
+             'DOCKER_IMAGE_NAME=mydockerimage:${env.BUILD_ID}"'
             ]) {
 
          stage("Checkout") {
