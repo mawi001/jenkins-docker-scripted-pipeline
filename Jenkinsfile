@@ -1,20 +1,5 @@
 #!groovy
-def tryStep(String message, Closure block, Closure tearDown = null) {
-    try {
-        block()
-    }
-    catch (Throwable t) {
-        slackSend message: "${env.JOB_NAME}: ${message} failure ${env.BUILD_URL}", channel: "${env.slack_channel}", color: 'danger'
-
-        throw t
-    }
-    finally {
-        if (tearDown) {
-            tearDown()
-        }
-    }
-}
-node(){
+node {
     withEnv(['DISABLE_AUTH=true',
            'DB_ENGINE=sqlite',
            "dockerImageName="user/my_image:${env.BUILD_NUMBER}"
@@ -29,7 +14,7 @@ node(){
              sh 'printenv'
 
              docker.withRegistry("${docker_registry_host}",'docker_registry_auth') {
-                 def image = docker.build("${env.dockerImageName}",'.')
+                 def image = docker.build("${env.dockerImageName}")
                  image.push()
              }
          }
