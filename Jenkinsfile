@@ -1,6 +1,6 @@
 #!groovy
 node {
-    withEnv(['DISABLE_AUTH=true','DB_ENGINE=sqlite']) {
+    withEnv(['DISABLE_AUTH=true','DB_ENGINE=sqlite','DOCKER_IMAGE_NAME=mydockerimage']) {
 
          stage("Checkout") {
              checkout scm
